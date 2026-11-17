@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Stay Awake</title>
+<style>
+:root{--bg:#0b0d1a;--fg:#e8e6ff;--muted:#8d8bb0;--a:#7c6cff;--b:#ff7ccf;--c:#5ce1e6;color-scheme:dark;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#0b0d1a}}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;text-align:center}
+.stage{position:relative;width:min(70vw,320px);aspect-ratio:1}
+.orb{position:absolute;inset:0;border-radius:50%;filter:blur(2px);mix-blend-mode:screen;animation:drift 9s ease-in-out infinite}
+.o1{background:radial-gradient(circle at 30% 30%,var(--a),transparent 65%)}
+.o2{background:radial-gradient(circle at 70% 40%,var(--b),transparent 65%);animation-delay:-3s}
+.o3{background:radial-gradient(circle at 50% 75%,var(--c),transparent 65%);animation-delay:-6s}
+@keyframes drift{0%,100%{transform:translate(-12%,-8%) scale(.9)}33%{transform:translate(14%,-4%) scale(1.1)}66%{transform:translate(-6%,12%) scale(1)}}
+.ring{position:absolute;inset:-8%;border:1px solid var(--muted);border-radius:50%;opacity:.35;animation:pulse 4s ease-in-out infinite}
+.ring.r2{inset:-20%;animation-delay:-2s}
+@keyframes pulse{0%,100%{transform:scale(.95);opacity:.15}50%{transform:scale(1.05);opacity:.45}}
+h1{font-weight:300;font-size:1.3rem;margin:3rem 0 .4rem;letter-spacing:.04em}
+#status{color:var(--muted);font-size:.95rem;min-height:1.3em}
+#timer{margin-top:.6rem;font-variant-numeric:tabular-nums;color:var(--muted);font-size:.9rem}
+button{margin-top:1.4rem;background:transparent;color:var(--fg);border:1px solid var(--muted);border-radius:999px;padding:.6rem 1.4rem;font-size:.95rem;cursor:pointer}
+button:active{background:rgba(255,255,255,.08)}
+</style>
+</head>
+<body>
+<div class="stage"><div class="ring"></div><div class="ring r2"></div><div class="orb o1"></div><div class="orb o2"></div><div class="orb o3"></div></div>
+<h1>Screen staying awake</h1>
+<div id="status">Tap below to start</div>
+<div id="timer"></div>
+<button id="btn">Keep screen on</button>
+<script>
+let lock=null,start=null,tick=null,wanted=false;
+const st=document.getElementById('status'),btn=document.getElementById('btn'),tm=document.getElementById('timer');
+async function acquire(){
+  if(!('wakeLock' in navigator)){st.textContent='Wake Lock not supported in this browser';return false}
+  try{
+    lock=await navigator.wakeLock.request('screen');
+    lock.addEventListener('release',()=>{if(wanted&&document.visibilityState!=='visible')return;});
+    st.textContent='Wake lock active. Go for your walk!';return true;
+  }catch(e){st.textContent='Could not lock screen. Open this page in its own tab and try again.';return false}
+}
+function fmt(s){const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return [h,m,x].map(n=>String(n).padStart(2,'0')).join(':')}
+btn.onclick=async()=>{
+  if(wanted){wanted=false;try{await lock&&lock.release()}catch(e){}lock=null;clearInterval(tick);tm.textContent='';st.textContent='Stopped';btn.textContent='Keep screen on';return}
+  if(await acquire()){wanted=true;start=Date.now();btn.textContent='Stop';clearInterval(tick);tick=setInterval(()=>{tm.textContent='Awake for '+fmt(Math.floor((Date.now()-start)/1000))},1000)}
+};
+document.addEventListener('visibilitychange',()=>{if(wanted&&document.visibilityState==='visible')acquire()});
+</script>
+</body>
+</html>
